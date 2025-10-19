@@ -17,7 +17,7 @@
 package com.vaadin.lab.ai;
 
 import java.util.List;
-
+import java.util.Map;
 
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
@@ -72,6 +72,7 @@ public class CustomerSupportAssistant {
 		return this.chatClient.prompt()
 			.user(userMessage)
 			.advisors(a -> a.param(ChatMemory.CONVERSATION_ID, chatId))
+			.toolContext(Map.of("progressToken", "progress-" + chatId + "-" + System.currentTimeMillis()))
 			.call()
 			.content();
 	}

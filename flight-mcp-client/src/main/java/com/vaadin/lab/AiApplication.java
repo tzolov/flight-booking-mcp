@@ -12,8 +12,9 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 @SpringBootApplication
 public class AiApplication implements AppShellConfigurator {
 
+	// Workaround until https://github.com/spring-projects/spring-ai/pull/4671
 	@Autowired
-	private McpClientHandlers mcpClientHandlers;
+	private McpClientHandlers mcpClientHandlers; 
 
 	public static void main(String[] args) {
 		SpringApplication.run(AiApplication.class, args);

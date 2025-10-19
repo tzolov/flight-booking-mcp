@@ -16,17 +16,31 @@ public class McpClientHandlers {
 
 	private static final Logger logger = LoggerFactory.getLogger(McpClientHandlers.class);
 
+	private final ElicitationService elicitationService;
+
+	public McpClientHandlers(ElicitationService elicitationService) {
+		this.elicitationService = elicitationService;
+	}
+
 	@McpLogging(clients = "flight-assistant")
 	public void loggingHandler(LoggingMessageNotification loggingMessage) {
 		logger.info("MCP LOGGING: [{}] {}", loggingMessage.level(), loggingMessage.data());
 	}
 
-	public record ConsentResponse(String consentResponse) {}
+	public record ConsentResponse(String consent) {}
 
 	@McpElicitation(clients = "flight-assistant")
 	public StructuredElicitResult<ConsentResponse> elicitationHandler(McpSchema.ElicitRequest request) {
 		logger.info("MCP ELICITATION: {}", request);
-		return new StructuredElicitResult<>(ElicitResult.Action.ACCEPT, new ConsentResponse("yes"), null);
+		
+		// Request user consent via the UI
+		ElicitationService.ElicitationResponse response = elicitationService.requestUserConsent(request);
+		
+		return new StructuredElicitResult<>(
+			response.action(), 
+			new ConsentResponse(response.message()), 
+			null
+		);
 	}
 
 }

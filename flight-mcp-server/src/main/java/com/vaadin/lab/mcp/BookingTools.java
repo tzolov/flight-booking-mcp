@@ -17,14 +17,11 @@ package com.vaadin.lab.mcp;
 
 import com.vaadin.lab.model.BookingDetails;
 import com.vaadin.lab.services.FlightBookingService;
-import io.modelcontextprotocol.spec.McpSchema.CreateMessageResult;
-import io.modelcontextprotocol.spec.McpSchema.ElicitResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springaicommunity.mcp.annotation.McpTool;
 import org.springaicommunity.mcp.annotation.McpToolParam;
 import org.springaicommunity.mcp.context.McpSyncRequestContext;
-import org.springaicommunity.mcp.context.StructuredElicitResult;
 
 import org.springframework.stereotype.Service;
 
@@ -65,8 +62,7 @@ public class BookingTools {
 		@McpToolParam(description = "The departure airport code, (e.g. JFK)") String from,
 		@McpToolParam(description = "The destination airport code (e.g. SFO)") String to) {
 
-		ctx.info(
-				String.format("Changing flight booking for bookingNumber: %s, firstName: %s, lastName: %s, newDate: %s, from: %s, to: %s",
+		ctx.info(String.format("Changing flight booking for number: %s, first: %s, last: %s, newDate: %s, from: %s, to: %s",
 						bookingNumber, firstName, lastName, newDate, from, to));
 
 		this.flightBookingService.changeBooking(bookingNumber, firstName, lastName, newDate, from, to);
@@ -86,55 +82,35 @@ public class BookingTools {
 	}
 
 
-	public record ConsentResponse(String consentResponse) {}
+	// Special Tool used to elicit user consent for booking change or cancellation operations
+	// Uses the ConsentResponse record defined below to capture structured user consent response.
+	
+	public record ConsentResponse(String consent) {}
 
 	@McpTool(description = "Elicit user consent for a given request like changing or canceling a booking")
-	public String getUserConsent(
-		McpSyncRequestContext ctx,
+	public String getUserConsent(McpSyncRequestContext ctx,
 		@McpToolParam(description = "The consent request") String consentRequest) {
 
+		ctx.info("Eliciting user consent for request: " + consentRequest);
 
-		if (ctx.elicitEnabled()) {
-			StructuredElicitResult<ConsentResponse> elicitationResult = ctx.elicit(
-				e -> e.message("Do you consent to: " + consentRequest + "? (yes/no)"), ConsentResponse.class);
-
-			if (elicitationResult.action() == ElicitResult.Action.ACCEPT) {
-				return elicitationResult.structuredContent().consentResponse();					
-			}
+		if (!ctx.elicitEnabled()) {
+			logger.warn("Elicitation is not enabled in the current context. Cannot get user consent.");
+			return "Elicitation not enabled. Please ask without tool usage.";
 		}
 
-		return "No consent provided. Please ask without tool usage.";
+		var elicitationResult = ctx.elicit(e -> e.message("Do you consent to: " + consentRequest), ConsentResponse.class);
+
+		switch (elicitationResult.action()) {
+			case ACCEPT:
+				logger.info("User provided consent: " + elicitationResult.structuredContent().consent());
+				return elicitationResult.structuredContent().consent();
+			case DECLINE:
+				logger.info("User rejected consent.");
+				return "User didn't agree with the consent request! The answer is NO.";
+			case CANCEL:
+				logger.info("Elicitation was cancelled by the user.");
+			default:
+				return "No consent provided. Please ask without tool usage.";
+		}
 	}
-
-	public record Person(String name, Number age) {}
-
-	@McpTool(description = "Test tool", name = "tool1", generateOutputSchema = true)
-	public String toolLoggingSamplingElicitationProgress(McpSyncRequestContext ctx, @McpToolParam String input) {
-
-		ctx.info("Tool Invoked"); // call client logging (info level)
-
-		ctx.progress(p -> p.percentage(25).message("tool call start")); // call client progress
-
-		ctx.ping(); // call client ping
-
-		StructuredElicitResult<Person> elicitationResult = ctx.elicit(e -> e.message("Fill in"), Person.class);
-			
-			
-		ctx.progress(p -> p.progress(0.50).total(1.0).message("elicitation completed"));
-		
-		CreateMessageResult samplingResponse = ctx.sample(s -> s
-			.message("Test Sampling Message")
-			.maxTokens(500)
-			.modelPreferences(mp -> mp.modelHints("OpenAi","Ollama")
-					.costPriority(1.0)
-					.speedPriority(1.0)
-					.intelligencePriority(1.0)));
-
-		ctx.progress(p -> p.progress(1.0).total(1.0).message("sampling completed"));
-
-		ctx.info("Tool2 Done");
-
-		return "CALL RESPONSE: " + samplingResponse.toString() + ", " + elicitationResult.toString();
-	}
-
 }
