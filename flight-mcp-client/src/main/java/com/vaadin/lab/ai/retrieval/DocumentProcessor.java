@@ -46,7 +46,7 @@ public class DocumentProcessor {
 
             // Process each document
             for (Resource resource : resolver.getResources("classpath:rag/*.txt")) {
-                System.out.println("Ingesting document: " + resource.getFilename());
+                // System.out.println("Ingesting document: " + resource.getFilename());
                 vectorStore.write(splitter.transform(new TextReader(resource).read()));
             }
         };

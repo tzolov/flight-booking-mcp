@@ -100,6 +100,6 @@ public class DataInitializer implements ApplicationRunner {
                 BookingStatus.CONFIRMED, "MAD", "SFO", "11E", BookingClass.PREMIUM_ECONOMY);
         bookingRepository.save(booking10);
 
-        System.out.println("Database initialized with 10 realistic flight bookings");
+        // System.out.println("Database initialized with 10 realistic flight bookings");
     }
 }
