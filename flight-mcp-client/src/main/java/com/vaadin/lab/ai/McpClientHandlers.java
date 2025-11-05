@@ -1,7 +1,6 @@
 package com.vaadin.lab.ai;
 
 import io.modelcontextprotocol.spec.McpSchema;
-import io.modelcontextprotocol.spec.McpSchema.ElicitResult;
 import io.modelcontextprotocol.spec.McpSchema.LoggingMessageNotification;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

@@ -16,13 +16,10 @@
 
 package com.vaadin.lab.ai;
 
-import java.util.List;
 import java.util.Map;
 
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
-import org.springframework.ai.chat.client.advisor.SafeGuardAdvisor;
-import org.springframework.ai.chat.client.advisor.api.Advisor;
 import org.springframework.ai.chat.client.advisor.vectorstore.QuestionAnswerAdvisor;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.tool.ToolCallbackProvider;
@@ -35,12 +32,12 @@ import org.springframework.stereotype.Service;
  * * @author Christian Tzolov
  */
 @Service
-public class CustomerSupportAssistant {
+public class AiAssistant {
 
 	private final ChatClient chatClient;
 
 	// @formatter:off
-	public CustomerSupportAssistant(
+	public AiAssistant(
 		ChatClient.Builder chatClientBuilder,
 		@Value("classpath:/prompt/system-prompt.txt") Resource systemPrompt,
 		ChatMemory chatMemory,
@@ -54,13 +51,7 @@ public class CustomerSupportAssistant {
 					// MEMORY
 					MessageChatMemoryAdvisor.builder(chatMemory).build(),
 					// RAG
-					QuestionAnswerAdvisor.builder(vectorStore).build(),
-					// GUARDRAILS
-					SafeGuardAdvisor.builder() 
-						.order(Advisor.DEFAULT_CHAT_MEMORY_PRECEDENCE_ORDER - 100) // ensures it is not put in the chat memory
-						.sensitiveWords(List.of(
-							"credit card number", "visa number", "password", "ssn", "social security number"))
-						.build()
+					QuestionAnswerAdvisor.builder(vectorStore).build()
 				)
 				// TOOLS
 				.defaultToolCallbacks(toolCallbackProvider)

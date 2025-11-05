@@ -94,7 +94,7 @@ public class DataInitializer implements ApplicationRunner {
         bookingRepository.save(booking9);
 
         // 10. Far future Premium Economy booking
-        Customer customer10 = new Customer("Mason", "Young");
+        Customer customer10 = new Customer("Mason", "Bob");
         customerRepository.save(customer10);
         Booking booking10 = new Booking("B1010", LocalDate.now().plusDays(30), customer10,
                 BookingStatus.CONFIRMED, "MAD", "SFO", "11E", BookingClass.PREMIUM_ECONOMY);

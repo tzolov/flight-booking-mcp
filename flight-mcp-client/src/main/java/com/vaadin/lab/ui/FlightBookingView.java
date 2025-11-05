@@ -18,7 +18,7 @@ import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.splitlayout.SplitLayout;
 import com.vaadin.flow.router.Route;
-import com.vaadin.lab.ai.CustomerSupportAssistant;
+import com.vaadin.lab.ai.AiAssistant;
 import com.vaadin.lab.ai.ElicitationService;
 import com.vaadin.lab.services.BookingDetails;
 import com.vaadin.lab.services.FlightBookingService;
@@ -38,7 +38,7 @@ public class FlightBookingView extends SplitLayout {
 
 
     private final FlightBookingService flightBookingService;
-    private final CustomerSupportAssistant assistant;
+    private final AiAssistant assistant;
     private final ElicitationService elicitationService;
     private Grid<BookingDetails> grid;
     private final String chatId = UUID.randomUUID().toString();
@@ -46,7 +46,7 @@ public class FlightBookingView extends SplitLayout {
 
     public FlightBookingView(
         FlightBookingService flightBookingService,
-        CustomerSupportAssistant assistant,
+        AiAssistant assistant,
         ElicitationService elicitationService
     ) {
         this.flightBookingService = flightBookingService;
