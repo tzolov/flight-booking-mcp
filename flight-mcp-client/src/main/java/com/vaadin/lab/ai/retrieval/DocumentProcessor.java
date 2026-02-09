@@ -36,13 +36,9 @@ public class DocumentProcessor {
         return args -> {
             PathMatchingResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
 
-            TokenTextSplitter splitter = new TokenTextSplitter(
-                30, // Chunk size
-                20, // Overlap size
-                1, // Min chunk size
-                10000, // Max chunk size
-                true // Add metadata with the source file name
-            );
+            TokenTextSplitter splitter = TokenTextSplitter.builder().withChunkSize(30)
+                .withMinChunkSizeChars(1)
+                .withMinChunkSizeChars(10000).build();
 
             // Process each document
             for (Resource resource : resolver.getResources("classpath:rag/*.txt")) {
