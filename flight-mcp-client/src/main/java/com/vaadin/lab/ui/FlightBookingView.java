@@ -1,6 +1,11 @@
 package com.vaadin.lab.ui;
 
 
+import java.util.ArrayList;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
+
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.DetachEvent;
 import com.vaadin.flow.component.UI;
@@ -20,16 +25,17 @@ import com.vaadin.flow.component.splitlayout.SplitLayout;
 import com.vaadin.flow.router.Route;
 import com.vaadin.lab.ai.AiAssistant;
 import com.vaadin.lab.ai.ElicitationService;
+import com.vaadin.lab.ai.VaadinThreadLocalThingy;
+import com.vaadin.lab.security.OAuth2EventService;
 import com.vaadin.lab.services.BookingDetails;
 import com.vaadin.lab.services.FlightBookingService;
 import io.modelcontextprotocol.spec.McpSchema.ElicitResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
-import java.util.function.Consumer;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.client.ClientAuthorizationRequiredException;
+import org.springframework.web.context.request.RequestContextHolder;
 
 @Route("")
 public class FlightBookingView extends SplitLayout {
@@ -40,19 +46,22 @@ public class FlightBookingView extends SplitLayout {
     private final FlightBookingService flightBookingService;
     private final AiAssistant assistant;
     private final ElicitationService elicitationService;
+    private final OAuth2EventService oAuth2EventService;
     private Grid<BookingDetails> grid;
     private final String chatId = UUID.randomUUID().toString();
     private Consumer<ElicitationService.ElicitationRequest> elicitationListener;
+    private final String userId;
+    private MessageList messageList;
 
     public FlightBookingView(
-        FlightBookingService flightBookingService,
-        AiAssistant assistant,
-        ElicitationService elicitationService
-    ) {
+            FlightBookingService flightBookingService,
+            AiAssistant assistant,
+            ElicitationService elicitationService,
+            OAuth2EventService oAuth2EventService) {
         this.flightBookingService = flightBookingService;
         this.assistant = assistant;
         this.elicitationService = elicitationService;
-        
+
         setSizeFull();
         setOrientation(Orientation.HORIZONTAL);
         setSplitterPosition(30);
@@ -61,12 +70,43 @@ public class FlightBookingView extends SplitLayout {
         addToSecondary(createGrid());
 
         updateBookings();
-        
+
         // Register listener for elicitation requests
         elicitationListener = this::handleElicitationRequest;
         elicitationService.addListener(elicitationListener);
+        this.oAuth2EventService = oAuth2EventService;
+        userId = SecurityContextHolder.getContext().getAuthentication().getName();
+        System.out.println("🤡🤡🤡🤡🤡🤡🤡 " + userId);
+        this.oAuth2EventService.addListener(userId, this::handleTokenObtained);
     }
-    
+
+    private void handleTokenObtained(OAuth2EventService.TokenObtainedEvent tokenObtainedEvent) {
+        UI ui = getUI().orElse(null);
+        if (ui == null) {
+            return;
+        }
+        CompletableFuture.runAsync(() -> {
+            ui.access(() -> {
+                logger.info("Updating UI with chat response");
+                // Create new items list without the thinking message
+                var items = new ArrayList<>(messageList.getItems());
+
+                // Add a response with a markdown link for authentication
+                var responseItem = new MessageListItem("Authentication successful! You may now manage your bookings.");
+                responseItem.setUserColorIndex(2);
+                items.add(responseItem);
+
+                // Update the message list
+                messageList.setItems(items);
+
+                // Force push to client
+                ui.push();
+                logger.info("UI updated successfully");
+            });
+        });
+
+    }
+
     @Override
     protected void onDetach(DetachEvent detachEvent) {
         super.onDetach(detachEvent);
@@ -74,6 +114,7 @@ public class FlightBookingView extends SplitLayout {
         if (elicitationListener != null) {
             elicitationService.removeListener(elicitationListener);
         }
+        this.oAuth2EventService.removeListener(this.userId);
     }
 
 
@@ -81,6 +122,7 @@ public class FlightBookingView extends SplitLayout {
         var chatLayout = new VerticalLayout();
         var messageList = new MessageList();
         var messageInput = new MessageInput();
+        this.messageList = messageList;
 
         messageList.setMarkdown(true);
         chatLayout.setPadding(false);
@@ -120,13 +162,17 @@ public class FlightBookingView extends SplitLayout {
             return;
         }
 
+        var auth = SecurityContextHolder.getContext().getAuthentication();
+        var requestAttrs = RequestContextHolder.getRequestAttributes();
+
         // Execute chat asynchronously to keep UI responsive
         CompletableFuture.runAsync(() -> {
             try {
+                VaadinThreadLocalThingy.setContext(auth, requestAttrs);
                 logger.info("Starting async chat operation");
                 String response = assistant.chat(chatId, userMessage);
                 logger.info("Chat response received");
-                
+
                 // Update UI in the UI thread
                 ui.access(() -> {
                     try {
@@ -134,18 +180,18 @@ public class FlightBookingView extends SplitLayout {
                         // Create new items list without the thinking message
                         var items = new ArrayList<>(messageList.getItems());
                         items.remove(thinkingItem);
-                        
+
                         // Add the actual response
                         var responseItem = new MessageListItem(response, null, "Assistant");
                         responseItem.setUserColorIndex(2);
                         items.add(responseItem);
-                        
+
                         // Update the message list
                         messageList.setItems(items);
-                        
+
                         // Update bookings grid
                         updateBookings();
-                        
+
                         // Force push to client
                         ui.push();
                         logger.info("UI updated successfully");
@@ -155,24 +201,63 @@ public class FlightBookingView extends SplitLayout {
                 });
             } catch (Exception e) {
                 logger.error("Error in async chat", e);
+                if (e.getCause() instanceof ClientAuthorizationRequiredException authRequiredEx) {
+                    ui.access(() -> {
+                        logger.info("Updating UI with chat response");
+                        // Create new items list without the thinking message
+                        var items = new ArrayList<>(messageList.getItems());
+                        items.remove(thinkingItem);
+
+                        // Add a response with a markdown link for authentication
+                        var responseItem = new MessageListItem(
+                                "Before I can interact with the bookings, I need you to authenticate. Please [click here to authenticate](/custom-redirect).",
+                                null, "Assistant");
+                        responseItem.setUserColorIndex(2);
+                        items.add(responseItem);
+
+                        // Update the message list
+                        messageList.setItems(items);
+
+                        // Intercept the link click to open it in a popup instead of navigating
+                        ui.getPage().executeJs("""
+                                        setTimeout(function() {
+                                          var links = $0.querySelectorAll('a[href="/custom-redirect"]');
+                                          links.forEach(function(link) {
+                                            link.addEventListener('click', function(e) {
+                                              e.preventDefault();
+                                              window.open('/custom-redirect', '_blank', 'width=600,height=700,scrollbars=yes');
+                                            });
+                                          });
+                                        }, 100);""",
+                                messageList.getElement()
+                        );
+
+                        // Force push to client
+                        ui.push();
+                        logger.info("UI updated successfully");
+                    });
+                    return;
+                }
                 ui.access(() -> {
                     try {
                         // Create new items list without the thinking message
                         var items = new ArrayList<>(messageList.getItems());
                         items.remove(thinkingItem);
-                        
+
                         var errorItem = new MessageListItem("_Error: " + e.getMessage() + "_", null, "Assistant");
                         errorItem.setUserColorIndex(2);
                         items.add(errorItem);
-                        
+
                         messageList.setItems(items);
-                        
+
                         // Force push to client
                         ui.push();
                     } catch (Exception ex) {
                         logger.error("Error updating UI with error message", ex);
                     }
                 });
+            } finally {
+                VaadinThreadLocalThingy.clear();
             }
         });
     }
