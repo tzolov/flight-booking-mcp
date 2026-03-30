@@ -4,10 +4,10 @@ import io.modelcontextprotocol.spec.McpSchema;
 import io.modelcontextprotocol.spec.McpSchema.LoggingMessageNotification;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springaicommunity.mcp.annotation.McpElicitation;
-import org.springaicommunity.mcp.annotation.McpLogging;
-import org.springaicommunity.mcp.context.StructuredElicitResult;
 
+import org.springframework.ai.mcp.annotation.McpElicitation;
+import org.springframework.ai.mcp.annotation.McpLogging;
+import org.springframework.ai.mcp.annotation.context.StructuredElicitResult;
 import org.springframework.stereotype.Service;
 
 @Service

@@ -2,8 +2,7 @@ package com.vaadin.lab.mcp;
 
 import java.nio.charset.StandardCharsets;
 
-import org.springaicommunity.mcp.annotation.McpResource;
-
+import org.springframework.ai.mcp.annotation.McpResource;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
